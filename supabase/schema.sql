@@ -63,7 +63,6 @@ alter table public.parlays enable row level security;
 alter table public.legs enable row level security;
 
 create policy "members read" on public.members for select to authenticated using (true);
-create policy "members update self" on public.members for update to authenticated
-  using (id = auth.uid()) with check (id = auth.uid());
+-- No update policy on members: names are edited by the admin in the Supabase dashboard only.
 create policy "parlays all" on public.parlays for all to authenticated using (true) with check (true);
 create policy "legs all" on public.legs for all to authenticated using (true) with check (true);

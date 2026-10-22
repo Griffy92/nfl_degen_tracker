@@ -5,7 +5,7 @@ export type Parlay = { id: string; season: number; week: number; name: string | 
 
 export const MARKETS = [
   'Anytime TD', 'First TD', '2+ TDs', 'Passing yards', 'Passing TDs', 'Pass completions', 'Rushing yards',
-  'Receiving yards', 'Receptions', 'Rush + rec yards', 'Interceptions', 'Sacks', 'Tackles', 'Kicker points',
+  'Receiving yards', 'Receptions', 'Rush + rec yards', 'Combined TDs', 'Combined Rushing Yards', 'Combined Receiving Yards', 'Interceptions', 'Sacks', 'Tackles', 'Kicker points',
   'Line / spread', 'Head to head', 'Total points', 'Other',
 ]
 

@@ -3,6 +3,11 @@ import { supabase } from '../lib/supabase'
 import type { Member, Parlay } from '../lib/parlay'
 import ParlayCard from './ParlayCard'
 
+const THIS_YEAR = new Date().getFullYear()
+const SEASONS = Array.from({ length: 4 }, (_, i) => THIS_YEAR - 2 + i)   // e.g. 2024 to 2027
+const PLAYOFFS: Record<number, string> = { 19: 'Wild Card', 20: 'Divisional', 21: 'Conference', 22: 'Super Bowl' }
+const WEEKS = Array.from({ length: 22 }, (_, i) => i + 1)
+
 export default function Week({ userId }: { userId: string }) {
   const [season, setSeason] = useState(2026)
   const [week, setWeek] = useState(1)
@@ -27,8 +32,16 @@ export default function Week({ userId }: { userId: string }) {
   return (
     <main>
       <div className="picker">
-        <label>Season<input type="number" value={season} onChange={e => setSeason(+e.target.value)} /></label>
-        <label>Week<input type="number" min={1} max={22} value={week} onChange={e => setWeek(+e.target.value)} /></label>
+        <label>Season
+          <select value={season} onChange={e => setSeason(+e.target.value)}>
+            {(SEASONS.includes(season) ? SEASONS : [season, ...SEASONS]).map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </label>
+        <label>Week
+          <select value={week} onChange={e => setWeek(+e.target.value)}>
+            {WEEKS.map(w => <option key={w} value={w}>{PLAYOFFS[w] ? `${PLAYOFFS[w]} (${w})` : `Week ${w}`}</option>)}
+          </select>
+        </label>
       </div>
 
       {parlays.map((p, i) => <ParlayCard key={p.id} parlay={p} index={i} members={members} userId={userId} defaultOpen={i === parlays.length - 1} onDeleted={load} />)}

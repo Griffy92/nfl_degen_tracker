@@ -14,7 +14,7 @@ nav button.on{background:var(--field);color:#fff;border-color:var(--field)}
 .primary{background:var(--field);color:#fff;border-color:var(--field);font-weight:600}
 input,select{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:.45rem .6rem;width:100%}
 label{display:flex;flex-direction:column;gap:.2rem;font-size:.85rem;color:var(--mute)}
-.picker{display:flex;gap:.75rem;align-items:flex-end;margin-bottom:1rem}.picker label{width:110px}
+.picker{display:flex;gap:.75rem;align-items:flex-end;margin-bottom:1rem}.picker label{width:150px}
 .chip{padding:.25rem .7rem;border-radius:99px;font-weight:600;text-transform:capitalize;background:var(--line)}
 .chip.live{background:var(--flag)}.chip.hit{background:var(--field);color:#fff}.chip.missed{background:var(--miss);color:#fff}
 .slip{list-style:none;margin:0 0 1rem;padding:0;background:var(--paper);border:1px solid var(--line);border-radius:8px}
@@ -52,3 +52,4 @@ h3{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;margin:0}
 .ptitle{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.25rem}
 .meta{margin-left:auto;color:var(--mute);font-size:.85rem}
 .savemsg{grid-column:1/-1;font-size:.85rem;color:var(--field)}.savemsg.bad{color:var(--miss);font-weight:600}
+.pos{color:var(--field);font-weight:600}.neg{color:var(--miss);font-weight:600}.inline{max-width:220px}
