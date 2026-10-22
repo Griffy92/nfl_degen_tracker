@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Member, Parlay } from '../lib/parlay'
 import ParlayCard from './ParlayCard'
+import { currentSeasonWeek } from '../lib/currentWeek'
 
 const THIS_YEAR = new Date().getFullYear()
 const SEASONS = Array.from({ length: 4 }, (_, i) => THIS_YEAR - 2 + i)   // e.g. 2024 to 2027
@@ -9,8 +10,9 @@ const PLAYOFFS: Record<number, string> = { 19: 'Wild Card', 20: 'Divisional', 21
 const WEEKS = Array.from({ length: 22 }, (_, i) => i + 1)
 
 export default function Week({ userId }: { userId: string }) {
-  const [season, setSeason] = useState(2026)
-  const [week, setWeek] = useState(1)
+  const [{ season: initialSeason, week: initialWeek }] = useState(() => currentSeasonWeek())
+  const [season, setSeason] = useState(initialSeason)
+  const [week, setWeek] = useState(initialWeek)
   const [parlays, setParlays] = useState<Parlay[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [newName, setNewName] = useState('')
