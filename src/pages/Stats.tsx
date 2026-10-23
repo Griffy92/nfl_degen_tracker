@@ -53,7 +53,8 @@ export default function Stats() {
         const misses = pl.filter(l => l.result === 'miss')
         return misses.length === 1 && misses[0].member_id === m.id && !pl.some(l => l.result === 'pending')
       }).length
-      return { m, hits, total: mine.length, rate: mine.length ? hits / mine.length : 0, streak, killed }
+      const denied = ps.filter(p => byParlay(p.id).some(l => l.member_id === m.id && l.result === 'miss')).length
+      return { m, hits, total: mine.length, rate: mine.length ? hits / mine.length : 0, streak, killed, denied }
     }).sort((a, b) => b.rate - a.rate)
 
     const markets = [...new Set(ls.map(l => l.market))].map(k => {
@@ -63,6 +64,7 @@ export default function Stats() {
 
     const settled = ps.filter(p => { const st = parlayStatus(byParlay(p.id)); return st === 'hit' || st === 'missed' })
     const won = settled.filter(p => parlayStatus(byParlay(p.id)) === 'hit').length
+    const denied = ps.filter(p => parlayStatus(byParlay(p.id)) === 'missed').length
     const net = settled.reduce((t, p) => t + Number(p.payout) - Number(p.stake), 0)
     const priced = ls.filter(l => l.odds != null && (l.result === 'hit' || l.result === 'miss'))
     const oddsPeople = members.map(m => ({ m, ...summarize(priced.filter(l => l.member_id === m.id)) }))
@@ -72,7 +74,7 @@ export default function Stats() {
       ...summarize(priced.filter(l => (bandPerson === 'all' || l.member_id === bandPerson) && Number(l.odds) >= b.min && Number(l.odds) < b.max)),
     })).filter(x => x.n)
 
-    return { people, markets, oddsPeople, bands, settled: settled.length, won, net }
+    return { people, markets, oddsPeople, bands, settled: settled.length, won, denied, net }
   }, [legs, members, parlays, season, bandPerson])
 
   const seasons = [...new Set(parlays.map(p => p.season))].sort()
@@ -94,17 +96,18 @@ export default function Stats() {
       <section className="card">
         <h2>Syndicate</h2>
         <p className="big">{s.won} of {s.settled} parlays hit · net {money(s.net)}</p>
+        <p className="big">{s.denied} parlays denied</p>
       </section>
 
       <section className="card">
         <h2>Leg hit rate by person</h2>
         <table>
-          <thead><tr><th>Name</th><th>Hit rate</th><th>Record</th><th>Streak</th><th>Parlays killed</th></tr></thead>
+          <thead><tr><th>Name</th><th>Hit rate</th><th>Record</th><th>Streak</th><th>Parlays killed</th><th>Parlays denied</th></tr></thead>
           <tbody>{s.people.map(p => (
-            <tr key={p.m.id}><td>{p.m.name}</td><td>{pct(p.rate)}</td><td>{p.hits}-{p.total - p.hits}</td><td>{p.streak}</td><td>{p.killed}</td></tr>
+            <tr key={p.m.id}><td>{p.m.name}</td><td>{pct(p.rate)}</td><td>{p.hits}-{p.total - p.hits}</td><td>{p.streak}</td><td>{p.killed}</td><td>{p.denied}</td></tr>
           ))}</tbody>
         </table>
-        <p className="note">Parlays killed means you had the only missed leg on a settled parlay.</p>
+        <p className="note">Parlays killed means you had the only missed leg on a settled parlay. Parlays denied counts every parlay that missed because of a missed leg (for a person, every parlay where one of their legs missed, even if others missed too).</p>
       </section>
 
       <section className="card">

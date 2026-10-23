@@ -53,3 +53,9 @@ h3{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;margin:0}
 .meta{margin-left:auto;color:var(--mute);font-size:.85rem}
 .savemsg{grid-column:1/-1;font-size:.85rem;color:var(--field)}.savemsg.bad{color:var(--miss);font-weight:600}
 .pos{color:var(--field);font-weight:600}.neg{color:var(--miss);font-weight:600}.inline{max-width:220px}
+.shame{display:grid;justify-items:center;gap:.6rem;text-align:center;padding:1rem 0}
+.shame-kicker{margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--miss)}
+.shame-name{font-size:3rem;line-height:1;margin:0}
+.shame-img{width:100%;max-width:480px;height:auto;border:4px solid var(--miss);border-radius:8px;background:var(--paper)}
+.shame-missing{display:grid;place-items:center;min-height:260px;color:var(--mute);border-style:dashed}
+.shame-count{margin:0;font-size:1.3rem}.shame-count strong{color:var(--miss);font-family:'Barlow Condensed',sans-serif;font-size:2.2rem}
