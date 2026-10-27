@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { MARKETS, combinedOdds, money, parlayStatus, type Leg, type Member, type Parlay, type Result } from '../lib/parlay'
+import AddLegForm, { type NewLeg } from './AddLegForm'
+import EditLegForm, { type LegEdit } from './EditLegForm'
+import { combinedOdds, money, parlayStatus, type Leg, type Member, type Parlay, type Result } from '../lib/parlay'
 
-type Props = { parlay: Parlay; index: number; members: Member[]; userId: string; defaultOpen: boolean; onDeleted: () => void }
+type Props = { parlay: Parlay; index: number; members: Member[]; players: string[]; userId: string; defaultOpen: boolean; onDeleted: () => void }
 
-export default function ParlayCard({ parlay, index, members, userId, defaultOpen, onDeleted }: Props) {
+export default function ParlayCard({ parlay, index, members, players, userId, defaultOpen, onDeleted }: Props) {
   const [open, setOpen] = useState(defaultOpen)
   const [legs, setLegs] = useState<Leg[]>([])
   const [stake, setStake] = useState(String(parlay.stake))
   const [payout, setPayout] = useState(String(parlay.payout))
   const [saveMsg, setSaveMsg] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [slipOdds, setSlipOdds] = useState(parlay.slip_odds == null ? '' : String(parlay.slip_odds))
-  const [form, setForm] = useState({ member_id: userId, description: '', market: MARKETS[0], odds: '' })
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('legs').select('*').eq('parlay_id', parlay.id).order('created_at')
@@ -26,13 +28,17 @@ export default function ParlayCard({ parlay, index, members, userId, defaultOpen
   const multiplier = slip != null && !legs.some(l => l.result === 'push') ? slip : combinedOdds(legs)
   const expected = multiplier == null ? null : (Number(stake) || 0) * multiplier
 
-  async function addLeg(e: React.FormEvent) {
-    e.preventDefault()
-    await supabase.from('legs').insert({
-      parlay_id: parlay.id, member_id: form.member_id, description: form.description,
-      market: form.market, odds: form.odds === '' ? null : Number(form.odds),
-    })
-    setForm({ ...form, description: '', odds: '' }); load()
+  async function addLeg(leg: NewLeg): Promise<string | null> {
+    const { error } = await supabase.from('legs').insert({ parlay_id: parlay.id, ...leg })
+    if (error) return error.message
+    load()
+    return null
+  }
+  async function saveLeg(id: string, edit: LegEdit): Promise<string | null> {
+    const { error } = await supabase.from('legs').update(edit).eq('id', id)
+    if (error) return error.message
+    setEditingId(null); load()
+    return null
   }
   async function setResult(id: string, result: Result) { await supabase.from('legs').update({ result }).eq('id', id); load() }
   async function removeLeg(id: string) { if (confirm('Delete this leg?')) { await supabase.from('legs').delete().eq('id', id); load() } }
@@ -63,7 +69,11 @@ export default function ParlayCard({ parlay, index, members, userId, defaultOpen
 
       {open && (<>
       <ul className="slip">
-        {legs.map(l => (
+        {legs.map(l => editingId === l.id ? (
+          <li key={l.id} className={`${l.result} editing`}>
+            <EditLegForm leg={l} members={members} onSave={edit => saveLeg(l.id, edit)} onCancel={() => setEditingId(null)} />
+          </li>
+        ) : (
           <li key={l.id} className={l.result}>
             <div className="who">{name(l.member_id)}</div>
             <div className="what"><strong>{l.description}</strong><span>{l.market}{l.odds != null && ` · ×${Number(l.odds).toFixed(2)}`}</span></div>
@@ -71,6 +81,7 @@ export default function ParlayCard({ parlay, index, members, userId, defaultOpen
               {(['hit', 'miss', 'push', 'pending'] as Result[]).map(r => (
                 <button key={r} className={l.result === r ? 'on' : ''} onClick={() => setResult(l.id, r)}>{r === 'pending' ? 'reset' : r}</button>
               ))}
+              <button className="edit" aria-label={`Edit ${l.description}`} onClick={() => setEditingId(l.id)}>edit</button>
               <button className="x" aria-label="Delete leg" onClick={() => removeLeg(l.id)}>✕</button>
             </div>
           </li>
@@ -78,16 +89,7 @@ export default function ParlayCard({ parlay, index, members, userId, defaultOpen
         {!legs.length && <li className="blank">No legs yet. Add the first one below.</li>}
       </ul>
 
-      <form className="card" onSubmit={addLeg}>
-        <h3>Add a leg</h3>
-        <select value={form.member_id} onChange={e => setForm({ ...form, member_id: e.target.value })}>
-          {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-        </select>
-        <input required placeholder="Derrick Henry anytime TD" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-        <select value={form.market} onChange={e => setForm({ ...form, market: e.target.value })}>{MARKETS.map(m => <option key={m}>{m}</option>)}</select>
-        <input type="number" step="0.01" min="1.01" placeholder="Odds (1.40)" value={form.odds} onChange={e => setForm({ ...form, odds: e.target.value })} />
-        <button className="primary">Add leg</button>
-      </form>
+      <AddLegForm members={members} userId={userId} legs={legs} players={players} onAdd={addLeg} />
 
       <div className="card row">
         <h3>Money</h3>

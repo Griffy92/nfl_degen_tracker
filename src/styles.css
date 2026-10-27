@@ -59,3 +59,20 @@ h3{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;margin:0}
 .shame-img{width:100%;max-width:480px;height:auto;border:4px solid var(--miss);border-radius:8px;background:var(--paper)}
 .shame-missing{display:grid;place-items:center;min-height:260px;color:var(--mute);border-style:dashed}
 .shame-count{margin:0;font-size:1.3rem}.shame-count strong{color:var(--miss);font-family:'Barlow Condensed',sans-serif;font-size:2.2rem}
+.addleg .field{display:grid;gap:.3rem}
+.flabel{font-size:.85rem;color:var(--mute)}
+.pills{display:flex;flex-wrap:wrap;gap:.4rem}
+.pills button,.pills select{width:auto;min-height:40px;border-radius:99px;padding:.3rem .85rem;background:var(--paper);border:1px solid var(--line)}
+.pills button.on,.pills select.on{background:var(--field);color:#fff;border-color:var(--field)}
+.pills.small button{min-height:32px;font-size:.85rem;padding:.15rem .65rem;color:var(--mute)}
+.pills.seg{flex-wrap:nowrap}
+.lineRow{display:grid;grid-template-columns:auto 1fr;gap:.75rem;align-items:end}
+.preview{margin:0;padding:.5rem .7rem;background:var(--chalk);border-radius:6px;font-size:.95rem;color:var(--mute)}
+.preview strong{color:var(--ink)}
+.addleg .primary{min-height:44px}
+.slip li.editing{display:block;background:var(--chalk)}
+.editleg{display:grid;gap:.6rem}
+.editleg .erow{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.editleg .btns{display:flex;gap:.5rem}
+.acts .edit{color:var(--field)}
+@media(max-width:560px){.editleg .erow{grid-template-columns:1fr}}

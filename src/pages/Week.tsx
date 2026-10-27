@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Member, Parlay } from '../lib/parlay'
+import { topPlayers, type Member, type Parlay } from '../lib/parlay'
 import ParlayCard from './ParlayCard'
 import { currentSeasonWeek } from '../lib/currentWeek'
 
@@ -15,6 +15,7 @@ export default function Week({ userId }: { userId: string }) {
   const [week, setWeek] = useState(initialWeek)
   const [parlays, setParlays] = useState<Parlay[]>([])
   const [members, setMembers] = useState<Member[]>([])
+  const [players, setPlayers] = useState<string[]>([])
   const [newName, setNewName] = useState('')
 
   const load = useCallback(async () => {
@@ -22,6 +23,9 @@ export default function Week({ userId }: { userId: string }) {
     setMembers(m ?? [])
     const { data: p } = await supabase.from('parlays').select('*').eq('season', season).eq('week', week).order('created_at')
     setParlays(p ?? [])
+    // Names from past legs power the autocomplete in the add-leg form.
+    const { data: h } = await supabase.from('legs').select('description').order('created_at', { ascending: false }).limit(1000)
+    setPlayers(topPlayers((h ?? []).map(x => x.description)))
   }, [season, week])
   useEffect(() => { load() }, [load])
 
@@ -46,7 +50,7 @@ export default function Week({ userId }: { userId: string }) {
         </label>
       </div>
 
-      {parlays.map((p, i) => <ParlayCard key={p.id} parlay={p} index={i} members={members} userId={userId} defaultOpen={i === parlays.length - 1} onDeleted={load} />)}
+      {parlays.map((p, i) => <ParlayCard key={p.id} parlay={p} index={i} members={members} players={players} userId={userId} defaultOpen={i === parlays.length - 1} onDeleted={load} />)}
       {!parlays.length && <p className="empty">No parlays for week {week} yet.</p>}
 
       <form className="newparlay" onSubmit={addParlay}>
