@@ -71,7 +71,7 @@ export default function ParlayCard({ parlay, index, members, players, userId, de
       <ul className="slip">
         {legs.map(l => editingId === l.id ? (
           <li key={l.id} className={`${l.result} editing`}>
-            <EditLegForm leg={l} members={members} onSave={edit => saveLeg(l.id, edit)} onCancel={() => setEditingId(null)} />
+            <EditLegForm leg={l} members={members} players={players} onSave={edit => saveLeg(l.id, edit)} onCancel={() => setEditingId(null)} />
           </li>
         ) : (
           <li key={l.id} className={l.result}>

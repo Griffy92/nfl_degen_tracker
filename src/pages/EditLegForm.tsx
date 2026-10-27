@@ -1,20 +1,24 @@
-import { useEffect, useRef, useState } from 'react'
-import { MARKETS, type Leg, type Member } from '../lib/parlay'
+import { useEffect, useId, useRef, useState } from 'react'
+import { MARKETS, subjectOf, type Leg, type Member } from '../lib/parlay'
 
-export type LegEdit = { member_id: string; description: string; market: string; odds: number | null }
+export type LegEdit = { member_id: string; description: string; subject: string | null; market: string; odds: number | null }
 type Props = {
   leg: Leg
   members: Member[]
+  players: string[]                              // names used in past legs, for autocomplete
   onSave: (edit: LegEdit) => Promise<string | null> // resolves to an error message, or null on success
   onCancel: () => void
 }
 
 // Inline editor for a leg that's already been added. Description is plain text here because older legs were typed
 // freely and can't always be split back into player / line / market. The hit / miss result is not touched.
-export default function EditLegForm({ leg, members, onSave, onCancel }: Props) {
+export default function EditLegForm({ leg, members, players, onSave, onCancel }: Props) {
   const [memberId, setMemberId] = useState(leg.member_id)
   const [market, setMarket] = useState(leg.market)
   const [description, setDescription] = useState(leg.description)
+  // Older legs have no saved name yet, so start from the guess; saving stores it.
+  const [subject, setSubject] = useState(subjectOf(leg) ?? '')
+  const listId = useId()
   const [odds, setOdds] = useState(leg.odds == null ? '' : String(leg.odds))
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -30,7 +34,7 @@ export default function EditLegForm({ leg, members, onSave, onCancel }: Props) {
     e.preventDefault()
     if (!canSave) return
     setBusy(true); setError('')
-    const err = await onSave({ member_id: memberId, description: description.trim(), market, odds: oddsNum })
+    const err = await onSave({ member_id: memberId, description: description.trim(), subject: subject.trim() || null, market, odds: oddsNum })
     setBusy(false)
     if (err) setError(`Couldn't save: ${err}`)   // on success the parent closes this editor
   }
@@ -39,6 +43,10 @@ export default function EditLegForm({ leg, members, onSave, onCancel }: Props) {
     <form className="editleg" onSubmit={submit} onKeyDown={e => { if (e.key === 'Escape') onCancel() }}>
       <label>Description
         <input ref={descRef} required value={description} onChange={e => setDescription(e.target.value)} />
+      </label>
+      <label>Player or team (used for stats)
+        <input list={listId} autoComplete="off" autoCapitalize="words" placeholder="Derrick Henry" value={subject} onChange={e => setSubject(e.target.value)} />
+        <datalist id={listId}>{players.slice(0, 200).map(p => <option key={p} value={p} />)}</datalist>
       </label>
       <div className="erow">
         <label>Who picked it

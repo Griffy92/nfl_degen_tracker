@@ -1,7 +1,7 @@
 export type Result = 'pending' | 'hit' | 'miss' | 'push'
 export type Member = { id: string; name: string }
-export type Leg = { id: string; parlay_id: string; member_id: string; description: string; market: string; odds: number | null; result: Result; created_at: string }
-export type Parlay = { id: string; season: number; week: number; name: string | null; slip_odds: number | null; stake: number; payout: number }
+export type Leg = { id: string; parlay_id: string; member_id: string; description: string; subject: string | null; market: string; odds: number | null; result: Result; created_at: string }
+export type Parlay = { id: string; season: number; week: number; name: string | null; slip_odds: number | null; stake: number; payout: number; created_at?: string }
 
 export const MARKETS = [
   'Anytime TD', 'First TD', '2+ TDs', 'Passing yards', 'Passing TDs', 'Pass completions', 'Rushing yards',
@@ -30,7 +30,8 @@ export const money = (n: number) => (n < 0 ? '-' : '') + '$' + Math.abs(n).toFix
 //   line -> "<player> over|under <line> <label>"    e.g. "Josh Allen over 249.5 passing yards"
 //   free -> the user types the whole description    e.g. "Chiefs -3.5"
 export type MarketKind = 'td' | 'line' | 'free'
-export type MarketCfg = { kind: MarketKind; label?: string; placeholder?: string; subjectOptional?: boolean }
+// noSubject: the leg is not about one player or team (a game total, or several players combined), so no name is saved for stats.
+export type MarketCfg = { kind: MarketKind; label?: string; placeholder?: string; subjectOptional?: boolean; noSubject?: boolean; subjectLabel?: string; subjectPlaceholder?: string }
 const line = (label: string, subjectOptional = false): MarketCfg => ({ kind: 'line', label, subjectOptional })
 export const MARKET_CFG: Record<string, MarketCfg> = {
   'Anytime TD': { kind: 'td', label: 'anytime TD' },
@@ -44,14 +45,14 @@ export const MARKET_CFG: Record<string, MarketCfg> = {
   'Rushing Attempts': line('rushing attempts'),
   'Receptions': line('receptions'),
   'Rush + rec yards': line('rush + rec yards'),
-  'Combined TDs': line('combined TDs'),
-  'Combined Rushing Yards': line('combined rushing yards'),
-  'Combined Receiving Yards': line('combined receiving yards'),
+  'Combined TDs': { ...line('combined TDs'), noSubject: true, subjectLabel: 'Players', subjectPlaceholder: 'Henry + Barkley' },
+  'Combined Rushing Yards': { ...line('combined rushing yards'), noSubject: true, subjectLabel: 'Players', subjectPlaceholder: 'Henry + Barkley' },
+  'Combined Receiving Yards': { ...line('combined receiving yards'), noSubject: true, subjectLabel: 'Players', subjectPlaceholder: 'Henry + Barkley' },
   'Interceptions': line('interceptions'),
   'Sacks': line('sacks'),
   'Tackles': line('tackles'),
   'Kicker points': line('kicker points'),
-  'Total points': line('total points', true),
+  'Total points': { ...line('total points', true), noSubject: true },
   'Line / spread': { kind: 'free', placeholder: 'Chiefs -3.5' },
   'Head to head': { kind: 'free', placeholder: 'Chiefs to beat Bills' },
   'Other': { kind: 'free', placeholder: 'Describe the leg' },
@@ -61,16 +62,46 @@ export const marketCfg = (m: string): MarketCfg => MARKET_CFG[m] ?? { kind: 'fre
 // One-tap markets. Everything else lives in the "More markets" dropdown.
 export const TOP_MARKETS = ['Anytime TD', 'Passing yards', 'Rushing yards', 'Receiving yards', 'Receptions', 'Line / spread']
 
+// Words that mark the end of a name in a description, whatever their capitalisation ("Darius Cooper Under 40.5" -> "Darius Cooper").
+const NOT_NAME = new Set([
+  'over', 'under', 'anytime', 'any', 'first', 'last', 'to', 'td', 'tds', 'ml', 'moneyline', 'spread', 'total', 'combined',
+  'passing', 'rushing', 'receiving', 'rec', 'rush', 'pass', 'yards', 'yds', 'receptions', 'rushes', 'attempts', 'completions',
+  'sacks', 'tackles', 'interceptions', 'ints', 'kicker', 'points', 'pts', 'longest',
+])
+
 // Pull the player or team name off the front of a description ("Derrick Henry anytime TD" -> "Derrick Henry").
 // Only used for suggestions, so a rough match is fine.
 export function playerFrom(description: string): string | null {
-  const m = description.trim().match(/^([A-Z][\w'.\-]*(?:\s+[A-Z][\w'.\-]*){0,2})/)
-  return m ? m[1] : null
+  const name: string[] = []
+  for (const tok of description.trim().split(/\s+/)) {
+    const bare = tok.toLowerCase().replace(/[.,]$/, '')
+    if (name.length === 3 || !/^[A-Z][\w'.\-]*$/.test(tok) || /\d/.test(tok) || NOT_NAME.has(bare)) break
+    name.push(tok)
+  }
+  return name.length ? name.join(' ') : null
 }
 
-// Most frequently used names first.
-export function topPlayers(descriptions: string[]): string[] {
-  const counts = new Map<string, number>()
-  for (const d of descriptions) { const p = playerFrom(d); if (p) counts.set(p, (counts.get(p) ?? 0) + 1) }
-  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([p]) => p)
+// Two spellings that differ only in case or spacing count as the same name.
+export const nameKey = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
+
+// The player or team a leg is about: the saved subject if there is one, otherwise a guess from the description.
+// Legs that aren't about a single name (game totals, combined props, "Other") give null.
+export function subjectOf(l: Pick<Leg, 'subject' | 'description' | 'market'>): string | null {
+  const saved = l.subject?.trim()
+  if (saved) return saved
+  if (l.market === 'Other' || marketCfg(l.market).noSubject) return null
+  return playerFrom(l.description)
+}
+
+// Most frequently used names first (one entry per name, ignoring case).
+export function topPlayers(legs: Pick<Leg, 'subject' | 'description' | 'market'>[]): string[] {
+  const seen = new Map<string, { name: string; n: number }>()
+  for (const l of legs) {
+    const name = subjectOf(l)
+    if (!name) continue
+    const k = nameKey(name)
+    const cur = seen.get(k)
+    if (cur) cur.n++; else seen.set(k, { name, n: 1 })
+  }
+  return [...seen.values()].sort((a, b) => b.n - a.n).map(x => x.name)
 }

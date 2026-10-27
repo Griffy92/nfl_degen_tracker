@@ -32,6 +32,7 @@ create table public.legs (
   parlay_id uuid not null references public.parlays(id) on delete cascade,
   member_id uuid not null references public.members(id),
   description text not null,                   -- e.g. "Derrick Henry anytime TD"
+  subject text,                                -- player or team the leg is about, e.g. "Derrick Henry" (used for stats)
   market text not null default 'Other',
   odds numeric(6,2) check (odds is null or odds > 1),  -- decimal multiplier, e.g. 1.40
   result text not null default 'pending' check (result in ('pending','hit','miss','push')),
@@ -39,6 +40,7 @@ create table public.legs (
 );
 create index on public.legs (parlay_id);
 create index on public.legs (member_id);
+create index on public.legs (subject);
 
 -- 3) Auto-create a member row on first sign-in
 create function public.handle_new_user() returns trigger

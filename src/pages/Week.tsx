@@ -24,8 +24,8 @@ export default function Week({ userId }: { userId: string }) {
     const { data: p } = await supabase.from('parlays').select('*').eq('season', season).eq('week', week).order('created_at')
     setParlays(p ?? [])
     // Names from past legs power the autocomplete in the add-leg form.
-    const { data: h } = await supabase.from('legs').select('description').order('created_at', { ascending: false }).limit(1000)
-    setPlayers(topPlayers((h ?? []).map(x => x.description)))
+    const { data: h } = await supabase.from('legs').select('subject,description,market').order('created_at', { ascending: false }).limit(1000)
+    setPlayers(topPlayers(h ?? []))
   }, [season, week])
   useEffect(() => { load() }, [load])
 

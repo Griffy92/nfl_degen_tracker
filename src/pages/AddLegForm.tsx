@@ -1,8 +1,8 @@
 import { useId, useMemo, useRef, useState } from 'react'
-import { MARKETS, TOP_MARKETS, marketCfg, playerFrom, type Leg, type Member } from '../lib/parlay'
+import { MARKETS, TOP_MARKETS, marketCfg, playerFrom, subjectOf, type Leg, type Member } from '../lib/parlay'
 
 type Side = 'over' | 'under' | 'plus'
-export type NewLeg = { member_id: string; description: string; market: string; odds: number | null }
+export type NewLeg = { member_id: string; description: string; subject: string | null; market: string; odds: number | null }
 type Props = {
   members: Member[]
   userId: string
@@ -35,12 +35,18 @@ export default function AddLegForm({ members, userId, legs, players, onAdd }: Pr
     description = [who, amount, cfg.label].filter(Boolean).join(' ')
   }
 
+  // The name saved for stats. Game totals and combined props save none; spreads and head-to-heads fall back to the
+  // name at the start of the text ("Chiefs -3.5" -> Chiefs); "Other" only saves one if you type it.
+  const subjectValue: string | null = cfg.noSubject ? null
+    : cfg.kind === 'free' ? (who || (market === 'Other' ? null : playerFrom(free)))
+    : (who || null)
+
   const oddsNum = odds === '' ? null : Number(odds)
   const oddsOk = oddsNum == null || oddsNum > 1
   const canAdd = !!description && oddsOk && !busy
 
   // Names already in this parlay come first (handy for same game parlays), then the all-time list for autocomplete.
-  const inParlay = useMemo(() => [...new Set(legs.map(l => playerFrom(l.description)).filter((p): p is string => !!p))].slice(0, 8), [legs])
+  const inParlay = useMemo(() => [...new Set(legs.map(subjectOf).filter((p): p is string => !!p))].slice(0, 8), [legs])
   const suggestions = useMemo(() => [...new Set([...inParlay, ...players])].slice(0, 200), [inParlay, players])
   const moreMarkets = MARKETS.filter(m => !TOP_MARKETS.includes(m))
 
@@ -48,7 +54,7 @@ export default function AddLegForm({ members, userId, legs, players, onAdd }: Pr
     e.preventDefault()
     if (!canAdd) return
     setBusy(true); setError('')
-    const err = await onAdd({ member_id: memberId, description, market, odds: oddsNum })
+    const err = await onAdd({ member_id: memberId, description, subject: subjectValue, market, odds: oddsNum })
     setBusy(false)
     if (err) { setError(`Couldn't add leg: ${err}`); return }
     // Keep who / market / over-under so the next leg is quick; clear the bits that change every time.
@@ -82,23 +88,21 @@ export default function AddLegForm({ members, userId, legs, players, onAdd }: Pr
         </div>
       </div>
 
-      {cfg.kind === 'free' ? (
+      {cfg.kind === 'free' && (
         <label>Leg
           <input ref={firstField} required placeholder={cfg.placeholder} value={free} onChange={e => setFree(e.target.value)} />
         </label>
-      ) : (
-        <>
-          <label>{cfg.subjectOptional ? 'Game (optional)' : 'Player'}
-            <input ref={firstField} list={listId} autoComplete="off" autoCapitalize="words" required={!cfg.subjectOptional}
-              placeholder={cfg.subjectOptional ? 'Chiefs @ Bills' : 'Derrick Henry'} value={subject} onChange={e => setSubject(e.target.value)} />
-            <datalist id={listId}>{suggestions.map(p => <option key={p} value={p} />)}</datalist>
-          </label>
-          {inParlay.length > 0 && (
-            <div className="pills small" aria-label="Players already in this parlay">
-              {inParlay.map(p => <button type="button" key={p} onClick={() => setSubject(p)}>{p}</button>)}
-            </div>
-          )}
-        </>
+      )}
+      <label>{cfg.kind === 'free' ? 'Player or team (optional, for stats)' : cfg.subjectOptional ? 'Game (optional)' : cfg.subjectLabel ?? 'Player'}
+        <input ref={cfg.kind === 'free' ? undefined : firstField} list={listId} autoComplete="off" autoCapitalize="words" required={cfg.kind !== 'free' && !cfg.subjectOptional}
+          placeholder={cfg.kind === 'free' ? (market === 'Other' ? 'Derrick Henry' : playerFrom(free) ? `Auto: ${playerFrom(free)}` : 'Chiefs') : cfg.subjectOptional ? 'Chiefs @ Bills' : cfg.subjectPlaceholder ?? 'Derrick Henry'}
+          value={subject} onChange={e => setSubject(e.target.value)} />
+        <datalist id={listId}>{suggestions.map(p => <option key={p} value={p} />)}</datalist>
+      </label>
+      {inParlay.length > 0 && !cfg.noSubject && (
+        <div className="pills small" aria-label="Players already in this parlay">
+          {inParlay.map(p => <button type="button" key={p} onClick={() => setSubject(p)}>{p}</button>)}
+        </div>
       )}
 
       {cfg.kind === 'line' && (
