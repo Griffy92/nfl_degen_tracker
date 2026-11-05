@@ -18,7 +18,7 @@ export default function Parlays({ infos }: StatsData) {
           </table>
         </Scroll>
         {!sizes.length && <p className="note">Settle some parlays to see how size affects results.</p>}
-        <p className="note">Settled parlays only. More legs pays more but lands less often, and this shows where the syndicate sits on that trade-off.</p>
+        <p className="note">Settled parlays only. More legs pays more but lands less often, and this shows where the syndicate sits on that trade-off. Staked counts cash only; Net includes bonus bet winnings.</p>
       </section>
 
       <section className="card">

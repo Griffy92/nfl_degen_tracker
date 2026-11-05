@@ -1,7 +1,7 @@
 export type Result = 'pending' | 'hit' | 'miss' | 'push'
 export type Member = { id: string; name: string }
 export type Leg = { id: string; parlay_id: string; member_id: string; description: string; subject: string | null; market: string; odds: number | null; result: Result; created_at: string }
-export type Parlay = { id: string; season: number; week: number; name: string | null; slip_odds: number | null; stake: number; payout: number; created_at?: string }
+export type Parlay = { id: string; season: number; week: number; name: string | null; slip_odds: number | null; stake: number; payout: number; is_bonus?: boolean; created_at?: string }
 
 export const MARKETS = [
   'Anytime TD', 'First TD', '2+ TDs', 'Passing yards', 'Passing TDs', 'Pass completions', 'Rushing yards',
@@ -24,6 +24,19 @@ export function combinedOdds(legs: Leg[]): number | null {
   return live.reduce((t, l) => t * Number(l.odds), 1)
 }
 export const money = (n: number) => (n < 0 ? '-' : '') + '$' + Math.abs(n).toFixed(2)
+
+// Real money a parlay moved. "Total returned" is the full amount on the slip (stake x odds), for cash and bonus bets alike.
+// A cash bet nets that minus the stake. A bonus bet's stake was never your money, so it comes off the winnings, and a
+// loss costs nothing: net is the slip amount minus the bonus stake, never below zero.
+type Money = Pick<Parlay, 'stake' | 'payout' | 'is_bonus'>
+export const parlayNet = (p: Money) => {
+  const gross = Number(p.payout) || 0, stake = Number(p.stake) || 0
+  return p.is_bonus ? Math.max(0, gross - stake) : gross - stake
+}
+// Own money put in. Bonus stakes don't count, so return on cash isn't flattered by free bets.
+export const cashStake = (p: Money) => (p.is_bonus ? 0 : Number(p.stake) || 0)
+// What a winning parlay would add to your real money: the full payout for a cash bet, winnings only for a bonus bet.
+export const winPayout = (p: Pick<Parlay, 'stake' | 'is_bonus'>, multiplier: number) => (Number(p.stake) || 0) * (p.is_bonus ? multiplier - 1 : multiplier)
 
 // How each market turns into a leg description, so the add-leg form can build the text instead of the user typing it.
 //   td   -> "<player> <label>"                      e.g. "Derrick Henry anytime TD"

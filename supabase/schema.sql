@@ -23,6 +23,7 @@ create table public.parlays (
   stake numeric(10,2) not null default 0,
   slip_odds numeric(6,2) check (slip_odds is null or slip_odds > 1),  -- combined odds shown on the bookie's slip
   payout numeric(10,2) not null default 0,     -- total returned (0 if lost)
+  is_bonus boolean not null default false,     -- bonus bet: stake was free money, so net = payout minus stake, and a loss costs nothing
   created_at timestamptz not null default now()
 );
 create index on public.parlays (season, week);

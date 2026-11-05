@@ -100,3 +100,9 @@ h3{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;margin:0}
 .tidylist li{display:grid;grid-template-columns:minmax(120px,1fr) auto auto;gap:.6rem;align-items:center}
 .tidylist input{padding:.3rem .5rem}
 @media(max-width:560px){.tidylist li{grid-template-columns:1fr auto}.tidylist .note{grid-column:1/-1;order:3}.kv{grid-template-columns:1fr}.kv dd{margin-bottom:.3rem}}
+
+/* Bonus bets */
+.chip.bonus{background:var(--flag);text-transform:uppercase;font-size:.7rem;letter-spacing:.04em;padding:.15rem .5rem}
+label.check{grid-column:1/-1;flex-direction:row;align-items:center;gap:.5rem;font-size:.95rem;color:var(--ink)}
+label.check input{width:auto;height:1.1rem;margin:0}
+.bonusnote{grid-column:1/-1;margin:0}

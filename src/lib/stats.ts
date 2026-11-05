@@ -1,4 +1,4 @@
-import { combinedOdds, nameKey, parlayStatus, subjectOf, type Leg, type Member, type Parlay, type Status } from './parlay'
+import { cashStake, combinedOdds, nameKey, parlayNet, parlayStatus, subjectOf, winPayout, type Leg, type Member, type Parlay, type Status } from './parlay'
 
 // Everything here is plain functions over legs / parlays / members so the Stats page stays thin and this can be tested.
 // A leg counts toward hit rates only once it is settled (hit or miss). Pushes and pending legs don't.
@@ -186,7 +186,7 @@ export function parlayInfos(parlays: Parlay[], legs: Leg[]): ParlayInfo[] {
   const by = groupBy(legs, l => l.parlay_id)
   return parlays.map(p => {
     const ls = by.get(p.id) ?? []
-    return { p, legs: ls, status: parlayStatus(ls), net: (Number(p.payout) || 0) - (Number(p.stake) || 0) }
+    return { p, legs: ls, status: parlayStatus(ls), net: parlayNet(p) }
   })
 }
 export const isDone = (i: ParlayInfo) => i.status === 'hit' || i.status === 'missed'
@@ -198,7 +198,7 @@ export function sizeRows(infos: ParlayInfo[]) {
   const bucket = (n: number) => (n >= 6 ? '6+' : String(n))
   return [...groupBy(done, i => bucket(i.legs.length)).entries()].map(([size, xs]) => {
     const won = xs.filter(i => i.status === 'hit').length
-    return { size, parlays: xs.length, won, rate: won / xs.length, net: xs.reduce((t, i) => t + i.net, 0), staked: xs.reduce((t, i) => t + (Number(i.p.stake) || 0), 0) }
+    return { size, parlays: xs.length, won, rate: won / xs.length, net: xs.reduce((t, i) => t + i.net, 0), staked: xs.reduce((t, i) => t + cashStake(i.p), 0) }
   }).sort((a, b) => parseInt(a.size) - parseInt(b.size))
 }
 
@@ -227,21 +227,34 @@ export function closeCalls(infos: ParlayInfo[]): CloseCall[] {
     const slip = info.p.slip_odds == null ? null : Number(info.p.slip_odds)
     const mult = slip != null && !info.legs.some(l => l.result === 'push') ? slip : combinedOdds(info.legs)
     const stake = Number(info.p.stake) || 0
-    out.push({ info, killer: missed[0], wouldHavePaid: mult != null && stake > 0 ? stake * mult : null })
+    // A bonus bet would have paid winnings only.
+    out.push({ info, killer: missed[0], wouldHavePaid: mult != null && stake > 0 ? winPayout(info.p, mult) : null })
   }
   return out.sort((a, b) => (b.wouldHavePaid ?? 0) - (a.wouldHavePaid ?? 0))
 }
 
 // ---------- Overview numbers ----------
-export type Totals = { settled: number; won: number; denied: number; net: number; staked: number; roi: number | null }
+// net is real money in or out across everything, bonus bets included. staked, cashNet and roi look at cash bets only,
+// so free bets don't flatter the return. bonus is the free-money side on its own.
+export type Totals = {
+  settled: number; won: number; denied: number
+  net: number
+  staked: number; cashNet: number; roi: number | null
+  bonus: { placed: number; won: number; staked: number; net: number }
+}
 export function totals(infos: ParlayInfo[]): Totals {
   const done = infos.filter(isDone)
-  const net = done.reduce((t, i) => t + i.net, 0)
-  const staked = done.reduce((t, i) => t + (Number(i.p.stake) || 0), 0)
+  const cash = done.filter(i => !i.p.is_bonus)
+  const free = done.filter(i => i.p.is_bonus)
+  const sum = (xs: ParlayInfo[], f: (i: ParlayInfo) => number) => xs.reduce((t, i) => t + f(i), 0)
+  const staked = sum(cash, i => cashStake(i.p))
+  const cashNet = sum(cash, i => i.net)
   return {
     settled: done.length, won: done.filter(i => i.status === 'hit').length,
     denied: infos.filter(i => i.status === 'missed').length,
-    net, staked, roi: staked > 0 ? net / staked : null,
+    net: sum(done, i => i.net),
+    staked, cashNet, roi: staked > 0 ? cashNet / staked : null,
+    bonus: { placed: free.length, won: free.filter(i => i.status === 'hit').length, staked: sum(free, i => Number(i.p.stake) || 0), net: sum(free, i => i.net) },
   }
 }
 

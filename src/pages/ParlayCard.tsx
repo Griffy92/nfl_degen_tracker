@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import AddLegForm, { type NewLeg } from './AddLegForm'
 import EditLegForm, { type LegEdit } from './EditLegForm'
-import { combinedOdds, money, parlayStatus, type Leg, type Member, type Parlay, type Result } from '../lib/parlay'
+import { combinedOdds, money, parlayNet, parlayStatus, type Leg, type Member, type Parlay, type Result } from '../lib/parlay'
 
 type Props = { parlay: Parlay; index: number; members: Member[]; players: string[]; userId: string; defaultOpen: boolean; onDeleted: () => void }
 
@@ -13,6 +13,7 @@ export default function ParlayCard({ parlay, index, members, players, userId, de
   const [payout, setPayout] = useState(String(parlay.payout))
   const [saveMsg, setSaveMsg] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [bonus, setBonus] = useState(!!parlay.is_bonus)
   const [slipOdds, setSlipOdds] = useState(parlay.slip_odds == null ? '' : String(parlay.slip_odds))
 
   const load = useCallback(async () => {
@@ -26,7 +27,9 @@ export default function ParlayCard({ parlay, index, members, players, userId, de
   // Prefer the odds printed on the bookie's slip. A pushed leg changes the real price, so then fall back to the legs.
   const slip = slipOdds === '' ? null : Number(slipOdds)
   const multiplier = slip != null && !legs.some(l => l.result === 'push') ? slip : combinedOdds(legs)
+  // Full amount on the slip if it lands. For a bonus bet the stake comes off, which the net below takes care of.
   const expected = multiplier == null ? null : (Number(stake) || 0) * multiplier
+  const net = parlayNet({ stake: Number(stake) || 0, payout: Number(payout) || 0, is_bonus: bonus })
 
   async function addLeg(leg: NewLeg): Promise<string | null> {
     const { error } = await supabase.from('legs').insert({ parlay_id: parlay.id, ...leg })
@@ -42,11 +45,12 @@ export default function ParlayCard({ parlay, index, members, players, userId, de
   }
   async function setResult(id: string, result: Result) { await supabase.from('legs').update({ result }).eq('id', id); load() }
   async function removeLeg(id: string) { if (confirm('Delete this leg?')) { await supabase.from('legs').delete().eq('id', id); load() } }
-  async function saveMoney(over: { payout?: string } = {}) {
+  async function saveMoney(over: { payout?: string; bonus?: boolean } = {}) {
     const { error } = await supabase.from('parlays').update({
       stake: Number(stake) || 0,
       payout: Number(over.payout ?? payout) || 0,
       slip_odds: slipOdds === '' ? null : Number(slipOdds),
+      is_bonus: over.bonus ?? bonus,
     }).eq('id', parlay.id)
     setSaveMsg(error ? `Couldn't save: ${error.message}` : 'Saved')
   }
@@ -61,8 +65,9 @@ export default function ParlayCard({ parlay, index, members, players, userId, de
           <span className="chev" aria-hidden="true">{open ? '▾' : '▸'}</span>
           <span className="ptitle">{parlay.name || `Parlay ${index + 1}`}</span>
           <span className={`chip ${status}`}>{status === 'empty' ? 'No legs' : status}</span>
+          {bonus && <span className="chip bonus">bonus</span>}
           {multiplier != null && <span className="mult">×{multiplier.toFixed(2)}</span>}
-          <span className="meta">{legs.length} {legs.length === 1 ? 'leg' : 'legs'} · Net {money((Number(payout) || 0) - (Number(stake) || 0))}</span>
+          <span className="meta">{legs.length} {legs.length === 1 ? 'leg' : 'legs'} · Net {money(net)}</span>
         </button>
         {open && <button className="x" aria-label="Delete parlay" onClick={removeParlay}>Delete parlay</button>}
       </header>
@@ -93,14 +98,19 @@ export default function ParlayCard({ parlay, index, members, players, userId, de
 
       <div className="card row">
         <h3>Money</h3>
-        <label>Stake<input type="number" step="0.01" value={stake} onChange={e => setStake(e.target.value)} onBlur={() => saveMoney()} /></label>
+        <label>{bonus ? 'Bonus stake' : 'Stake'}<input type="number" step="0.01" value={stake} onChange={e => setStake(e.target.value)} onBlur={() => saveMoney()} /></label>
         <label>Slip odds<input type="number" step="0.01" min="1.01" placeholder="2.77" value={slipOdds} onChange={e => setSlipOdds(e.target.value)} onBlur={() => saveMoney()} /></label>
         <label>Total returned<input type="number" step="0.01" value={payout} onChange={e => setPayout(e.target.value)} onBlur={() => saveMoney()} /></label>
         {expected != null && status === 'hit' && <button type="button" onClick={() => { const v = expected.toFixed(2); setPayout(v); saveMoney({ payout: v }) }}>Use {money(expected)}</button>}
+        <label className="check">
+          <input type="checkbox" checked={bonus} onChange={e => { setBonus(e.target.checked); saveMoney({ bonus: e.target.checked }) }} />
+          Bonus bet (the stake was free money)
+        </label>
+        {bonus && <p className="note bonusnote">Enter the full amount on the slip. The bonus stake comes off it, since it was never your money, and a loss costs you nothing.</p>}
         {saveMsg && <span className={saveMsg === 'Saved' ? 'savemsg' : 'savemsg bad'}>{saveMsg}</span>}
         <span className="net">
-          Net {money((Number(payout) || 0) - (Number(stake) || 0))}
-          {expected != null && status !== 'hit' && status !== 'missed' && ` · pays ${money(expected)} if it lands`}
+          Net {money(net)}
+          {expected != null && status !== 'hit' && status !== 'missed' && ` · pays ${money(expected)} if it lands${bonus ? ` (${money(Math.max(0, expected - (Number(stake) || 0)))} after the bonus stake)` : ''}`}
         </span>
       </div>
       </>)}

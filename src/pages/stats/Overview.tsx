@@ -24,9 +24,15 @@ export default function Overview({ legs, members, infos }: StatsData) {
         <p className="big">{t.won} of {t.settled} parlays hit · net {money(t.net)}</p>
         <p className="big">{t.denied} parlays denied</p>
         <p className="note">
-          Staked {money(t.staked)} on settled parlays{t.roi != null && <> · return {t.roi >= 0 ? '+' : ''}{Math.round(t.roi * 100)}%</>}
+          Cash staked {money(t.staked)} on settled parlays{t.roi != null && <> · return {t.roi >= 0 ? '+' : ''}{Math.round(t.roi * 100)}%</>}
           {settledLegs.n > 0 && <> · {pct(settledLegs.rate)} of {plural(settledLegs.n, 'settled leg')} hit</>}
         </p>
+        {t.bonus.placed > 0 && (
+          <p className="note">
+            Bonus bets: {plural(t.bonus.placed, 'settled parlay')}, {t.bonus.won} won · {money(t.bonus.net)} from free money.
+            {' '}Without them the net is {money(t.cashNet)}.
+          </p>
+        )}
         <RunningNet points={runningNet(infos)} />
       </section>
 
